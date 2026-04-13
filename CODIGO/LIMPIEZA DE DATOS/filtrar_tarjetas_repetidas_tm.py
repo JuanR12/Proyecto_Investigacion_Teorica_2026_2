@@ -10,23 +10,29 @@ import pandas as pd
 # ============================================================
 # Carpeta donde están los archivos de entrada.
 # Cambia esta ruta a la carpeta real donde guardas las bases crudas.
-CARPETA_DATOS = Path(r"./datos")
+CARPETA_DATOS = Path(r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS")
 
 # Carpeta donde se guardarán los resultados.
 # Se crea automáticamente si no existe.
-CARPETA_SALIDA = Path(r"./salidas_limpias")
+CARPETA_SALIDA = Path(r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\FILTROS")
 
 # Nombre exacto del archivo a procesar dentro de CARPETA_DATOS.
 # Ejemplo: "20260408.csv"
-NOMBRE_ARCHIVO_ENTRADA = "20260408.csv"
+NOMBRE_ARCHIVO_ENTRADA = "20260401.csv"
 
 # Filtro por zona en la columna "Linea"
-USAR_FILTRO_LINEA = False
+# Ver lista de nombres correctos en la carpeta "INFORMACIÓN_BASES_DE_DATOS"
+USAR_FILTRO_LINEA = True
 VALOR_LINEA = "(32) Zona C Av. Suba"
 
 # Filtro por estación/parada troncal en la columna "Estacion_Parada"
-USAR_FILTRO_ESTACION = True
+# Ver lista de nombres correctos en la carpeta "INFORMACIÓN_BASES_DE_DATOS"
+USAR_FILTRO_ESTACION = False
 VALOR_ESTACION = "(05103) Marsella"
+
+# Filtro por tipo de tarjeta en la columna "Tipo_Tarjeta"
+USAR_FILTRO_TIPO_TARJETA = True
+VALOR_TIPO_TARJETA = "tullave Plus"
 
 # Tamaño de lectura por bloques. Útil para archivos grandes.
 TAMANO_BLOQUE = 500_000
@@ -37,6 +43,7 @@ COLUMNAS_INTERES = [
     "Fecha_Transaccion",
     "Linea",
     "Numero_Tarjeta",
+    "Tipo_Tarjeta",
 ]
 
 
@@ -160,7 +167,7 @@ def main() -> None:
         bloque.columns = [col.strip() for col in bloque.columns]
 
         bloque["Linea"] = (
-            bloque["Linea"].astype(str).str.strip().str.replace(r"\s+", " ", regex=True)
+        bloque["Linea"].astype(str).str.strip().str.replace(r"\s+", " ", regex=True)
         )
         bloque["Estacion_Parada"] = (
             bloque["Estacion_Parada"]
@@ -169,8 +176,14 @@ def main() -> None:
             .str.replace(r"\s+", " ", regex=True)
         )
         bloque["Numero_Tarjeta"] = bloque["Numero_Tarjeta"].astype(str).str.strip()
+        bloque["Tipo_Tarjeta"] = (
+            bloque["Tipo_Tarjeta"]
+            .astype(str)
+            .str.strip()
+            .str.replace(r"\s+", " ", regex=True)
+        )
         bloque["Fecha_Transaccion"] = pd.to_datetime(
-            bloque["Fecha_Transaccion"], errors="coerce"
+                bloque["Fecha_Transaccion"], errors="coerce"
         )
 
         if USAR_FILTRO_LINEA:
@@ -179,11 +192,14 @@ def main() -> None:
         if USAR_FILTRO_ESTACION:
             bloque = bloque[bloque["Estacion_Parada"] == VALOR_ESTACION]
 
+        if USAR_FILTRO_TIPO_TARJETA:
+            bloque = bloque[bloque["Tipo_Tarjeta"] == VALOR_TIPO_TARJETA]
+
         if not bloque.empty:
             partes_filtradas.append(bloque)
-
-    if not partes_filtradas:
-        raise SystemExit("No se encontraron registros con los filtros aplicados.")
+            
+        if not partes_filtradas:
+            raise SystemExit("No se encontraron registros con los filtros aplicados.")
 
     df = pd.concat(partes_filtradas, ignore_index=True)
 
