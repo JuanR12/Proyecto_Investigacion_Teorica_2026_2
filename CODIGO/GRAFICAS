@@ -1,0 +1,132 @@
+#IMAGEN HORA ESPECIFICA
+plt.figure(figsize=(14, 12))
+
+pos = nx.spring_layout(G, seed=42)
+
+node_sizes = [G.nodes[n]["weight"] * 0.8 for n in G.nodes()]
+node_sizes = [max(size, 30) for size in node_sizes]
+
+edge_widths = [G[u][v]['weight'] * 0.5 for u, v in G.edges()]
+
+node_color = "#9996cb"
+
+nx.draw(
+    G,
+    pos,
+    node_size=node_sizes,
+    width=edge_widths,
+    node_color=node_color,
+    edge_color="#cfcfe6",  
+    alpha=0.9,
+    with_labels=False
+)
+
+# si quiero nombre de las estaciones:
+# nx.draw_networkx_labels(
+#     G, pos,
+#     labels={n: G.nodes[n]["nombre"] for n in G.nodes()},
+#     font_size=7,
+#     font_color="#4a4a6a"
+# )
+
+
+plt.title(
+    f"Grafo de flujo • {hora_objetivo}",
+    fontsize=18,
+    fontweight="bold",
+    color="#4a4a6a",
+    pad=20
+)
+
+plt.gca().set_facecolor("#f7f7fb")
+plt.axis("off")
+
+plt.show()
+
+
+#GENERACION DE GRAFOS
+from pathlib import Path
+import matplotlib.pyplot as plt
+import networkx as nx
+import pandas as pd
+from datetime import datetime, timedelta
+
+# RANGO DE HORAS
+hora_inicio = datetime.strptime("08:00", "%H:%M")
+hora_fin = datetime.strptime("22:00", "%H:%M")
+
+intervalo = timedelta(minutes=15)
+
+output_dir = Path("grafos_horas")
+output_dir.mkdir(exist_ok=True)
+
+hora_actual = hora_inicio
+
+while hora_actual <= hora_fin:
+
+    hora_objetivo = hora_actual.strftime("%H:%M")
+    df["Hora"] = df["FechaHora"].dt.strftime("%H:%M")
+    df_hora = df[df["Hora"] == hora_objetivo].copy()
+
+    salidas_por_estacion = (
+        df_hora.groupby("Estacion")["Salidas_S"]
+        .sum()
+        .to_dict()
+    )
+
+    for nodo in G.nodes():
+        nombre = nodo.split(")", 1)[-1]
+        G.nodes[nodo]["nombre"] = nombre
+        G.nodes[nodo]["weight"] = salidas_por_estacion.get(nodo, 0)
+
+
+    plt.figure(figsize=(14, 12))
+
+    pos = nx.spring_layout(G, seed=42)
+
+    node_sizes = [G.nodes[n]["weight"] * 0.8 for n in G.nodes()]
+    node_sizes = [max(size, 30) for size in node_sizes]
+
+    edge_widths = [G[u][v]['weight'] * 0.5 for u, v in G.edges()]
+
+    nx.draw(
+        G,
+        pos,
+        node_size=node_sizes,
+        width=edge_widths,
+        node_color="#9996cb",
+        edge_color="#cfcfe6",
+        alpha=0.9,
+        with_labels=False
+    )
+
+    plt.title(
+        f"Grafo de flujo • {hora_objetivo}",
+        fontsize=18,
+        fontweight="bold",
+        color="#4a4a6a",
+        pad=20
+    )
+
+    plt.gca().set_facecolor("#f7f7fb")
+    plt.axis("off")
+
+    filename = output_dir / f"grafo_{hora_objetivo.replace(':', '-')}.png"
+    plt.savefig(filename, dpi=300, bbox_inches="tight")
+    plt.close()
+
+    hora_actual += intervalo
+
+print("✅ Todas las imágenes fueron generadas")
+
+#GIF
+import imageio
+from pathlib import Path
+
+input_dir = Path("grafos_horas")
+imagenes = sorted(input_dir.glob("grafo_*.png"))
+frames = [imageio.imread(img) for img in imagenes]
+output_gif = input_dir / "animacion.gif"
+imageio.mimsave(output_gif, frames, duration=0.2) 
+
+print(f"✅ GIF guardado en: {output_gif}")
