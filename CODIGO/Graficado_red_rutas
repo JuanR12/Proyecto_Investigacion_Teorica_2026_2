@@ -1,0 +1,50 @@
+import pandas as pd
+import networkx as nx
+import matplotlib.pyplot as plt
+
+df = pd.read_csv("Servicios.csv")
+col_origen = "orig_ruta"
+col_destino = "dest_ruta"
+df[col_origen] = df[col_origen].str.strip().str.lower()
+df[col_destino] = df[col_destino].str.strip().str.lower()
+df = df.dropna(subset=[col_origen, col_destino])
+
+# FLECHAS
+G = nx.DiGraph()
+
+#PESOS
+for _, row in df.iterrows():
+    origen = row[col_origen]
+    destino = row[col_destino]
+
+    if G.has_edge(origen, destino):
+        G[origen][destino]["weight"] += 1
+    else:
+        G.add_edge(origen, destino, weight=1)
+G.add_nodes_from(pd.concat([df[col_origen], df[col_destino]]).unique())
+
+print(f"Número de nodos: {G.number_of_nodes()}")
+print(f"Número de links: {G.number_of_edges()}")
+plt.figure(figsize=(12, 10))
+pos = nx.spring_layout(G, k=0.15, iterations=20)
+nx.draw_networkx_nodes(
+    G, pos,
+    node_size=50,
+    node_color="blue",
+    alpha=0.7
+)
+
+# LINKS
+weights = [G[u][v]["weight"] for u, v in G.edges()]
+
+nx.draw_networkx_edges(
+    G, pos,
+    width=[w * 0.1 for w in weights],  
+    alpha=0.5,
+    arrows=False 
+)
+
+
+plt.title("Red de estaciones - TransMilenio")
+plt.axis("off")
+plt.show()
