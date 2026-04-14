@@ -1,0 +1,87 @@
+
+hora_objetivo = "08:15"
+
+archivo_salidas = Path(r"20260412-2.csv")   
+# ==========================================
+# DETECTAR CODIFICACIÓN
+# ==========================================
+encoding_usado = "utf-8-sig"
+try:
+    pd.read_csv(archivo_salidas, nrows=5, encoding=encoding_usado)
+except UnicodeDecodeError:
+    encoding_usado = "latin-1"
+
+print(f"Codificación usada: {encoding_usado}")
+
+
+df = pd.read_csv(archivo_salidas, encoding=encoding_usado)
+df.columns = [col.strip() for col in df.columns]
+
+columnas_requeridas = [
+    "Fecha_Transaccion",
+    "Tiempo",
+    "Estacion",
+    "Entradas_E",
+    "Salidas_S"
+]
+
+faltantes = [col for col in columnas_requeridas if col not in df.columns]
+if faltantes:
+    raise ValueError(
+        f"Faltan estas columnas en el archivo: {faltantes}\n"
+        f"Columnas encontradas: {df.columns.tolist()}"
+    )
+
+df["Fecha_Transaccion"] = pd.to_datetime(df["Fecha_Transaccion"], errors="coerce")
+df["Tiempo"] = df["Tiempo"].astype(str).str.strip()
+
+df["FechaHora"] = pd.to_datetime(
+    df["Fecha_Transaccion"].dt.strftime("%Y-%m-%d") + " " + df["Tiempo"],
+    errors="coerce"
+)
+
+# ==========================================
+# LIMPIEZA BÁSICA
+# ==========================================
+df["Estacion"] = (
+    df["Estacion"]
+    .astype(str)
+    .str.strip()
+    .str.replace(r"\s+", " ", regex=True)
+)
+
+df["Salidas_S"] = pd.to_numeric(df["Salidas_S"], errors="coerce").fillna(0)
+
+#FILTROS
+df["Hora"] = df["FechaHora"].dt.strftime("%H:%M")
+
+df_hora = df[df["Hora"] == hora_objetivo].copy()
+
+salidas_por_estacion = (
+    df_hora.groupby("Estacion")["Salidas_S"]
+    .sum()
+    .to_dict()
+)
+
+print(f"Estaciones con datos a las {hora_objetivo}: {len(salidas_por_estacion)}")
+
+#PESOS DE LOS NODOS
+for nodo in G.nodes():
+
+    nombre = nodo.split(")", 1)[-1]
+
+    G.nodes[nodo]["nombre"] = nombre
+    
+    peso = salidas_por_estacion.get(nodo, 0)
+    G.nodes[nodo]["weight"] = peso
+
+sorted_nodes = sorted(
+    G.nodes(data=True),
+    key=lambda x: x[1].get("weight", 0),
+    reverse=True
+)
+
+print("\nTop estaciones por salidas:\n")
+
+for nodo, data in sorted_nodes[:20]:
+    print(f"{data['nombre']} → {data['weight']}")
