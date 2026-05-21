@@ -1,0 +1,134 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import random, re
+from pathlib import Path
+
+DATA_DIR    = Path(r'C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\datos')
+PARQUET_DIR = Path(r'C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet')
+
+MESES_INV = {
+    1:"ENERO",2:"FEBRERO",3:"MARZO",4:"ABRIL",5:"MAYO",6:"JUNIO",
+    7:"JULIO",8:"AGOSTO",9:"SEPTIEMBRE",10:"OCTUBRE",11:"NOVIEMBRE",12:"DICIEMBRE"
+}
+
+def parse_id(raw):
+    m = re.match(r"\((\d+)\)", str(raw).strip())
+    return m.group(1).zfill(5) if m else None
+
+def find_header(fp):
+    raw = pd.read_excel(fp, header=None, nrows=15, dtype=str)
+    for i, row in raw.iterrows():
+        if any(str(v).strip() in ('Estación','Estacion','ESTACION') for v in row if pd.notna(v)):
+            return i
+    return 6
+
+def is_new_format(cols):
+    return any(str(c).startswith('_') for c in cols
+               if str(c) not in ('Linea','Estacion','Acceso_Estacion','Intervalo','Total general'))
+
+def parse_day_col(col, new_fmt):
+    s = str(col).strip()
+    if new_fmt:
+        clean = s.lstrip('_').replace('_','-')
+        return clean if re.match(r'\d{4}-\d{2}-\d{2}', clean) else None
+    try: return pd.to_datetime(s).strftime('%Y-%m-%d')
+    except: return None
+
+def leer_xlsx(fp, tipo, año, mes):
+    header = find_header(fp)
+    df = pd.read_excel(fp, skiprows=header, header=0, dtype=str)
+    df = df.loc[:, ~df.columns.astype(str).str.contains('Total', case=False)]
+    cols = list(df.columns)
+
+    if tipo == 'entradas':
+        cols[:6] = ['_vacia','fase','linea_raw','estacion_raw','acceso','intervalo']
+        df.columns = cols
+        df = df[~df['fase'].str.upper().str.contains('DUAL', na=False)]
+        df = df.drop(columns=['_vacia','fase','acceso'])
+    else:
+        new_fmt = is_new_format(cols)
+        cols[:4] = ['linea_raw','estacion_raw','acceso','intervalo']
+        df.columns = cols
+        df = df.drop(columns=['acceso'])
+
+    df['station_id'] = df['estacion_raw'].map(parse_id)
+    df = df.dropna(subset=['station_id','intervalo'])
+    df = df.drop(columns=['linea_raw','estacion_raw'])
+
+    new_fmt = tipo == 'salidas' and is_new_format([c for c in df.columns if c not in ('station_id','intervalo')])
+    day_cols = {c: parse_day_col(c, new_fmt) for c in df.columns if c not in ('station_id','intervalo')}
+    day_cols = {k:v for k,v in day_cols.items() if v and
+                pd.Timestamp(v).year == año and pd.Timestamp(v).month == mes}
+
+    df = df.melt(id_vars=['station_id','intervalo'], value_vars=list(day_cols.keys()),
+                 var_name='fecha_col', value_name='conteo')
+    df['fecha']   = df['fecha_col'].map(day_cols)
+    df['conteo']  = pd.to_numeric(df['conteo'], errors='coerce')
+    df = df.dropna(subset=['conteo'])
+    df['intervalo'] = df['intervalo'].str.strip().str[:5]
+    df['datetime']  = pd.to_datetime(df['fecha'] + ' ' + df['intervalo'], format='%Y-%m-%d %H:%M')
+    return df.groupby('datetime')['conteo'].sum().rename(tipo)
+
+# ── Elegir mes al azar ─────────────────────────────────────────────────────────
+parquets_e = sorted(PARQUET_DIR.glob('*-entradas.parquet'))
+parquets_s = sorted(PARQUET_DIR.glob('*-salidas.parquet'))
+nombres_comunes = {f.name.replace('-entradas','').replace('-salidas','') for f in parquets_e} & \
+                  {f.name.replace('-entradas','').replace('-salidas','') for f in parquets_s}
+elegido  = random.choice(sorted(nombres_comunes))
+año, mes = int(elegido[:4]), int(elegido[5:7])
+yy       = str(año)[2:]
+print(f"Mes elegido: {MESES_INV[mes]} {año}")
+
+# ── Leer Parquet ───────────────────────────────────────────────────────────────
+pq_e = pd.read_parquet(PARQUET_DIR / f'{año}-{mes:02d}-entradas.parquet')
+pq_s = pd.read_parquet(PARQUET_DIR / f'{año}-{mes:02d}-salidas.parquet')
+
+pq_e = pq_e.groupby('datetime')['entradas'].sum()
+pq_s = pq_s.groupby('datetime')['salidas'].sum()
+
+pq_horario_e = pq_e.groupby(pq_e.index.hour).mean()
+pq_horario_s = pq_s.groupby(pq_s.index.hour).mean()
+
+# ── Leer XLSX ─────────────────────────────────────────────────────────────────
+mes_nombre = MESES_INV[mes]
+xlsx_e = next((DATA_DIR / f'{mes_nombre}{yy}.xlsx' for p in [DATA_DIR / f'{mes_nombre}{yy}.xlsx',
+               DATA_DIR / f'{mes_nombre}{año}.xlsx'] if p.exists()), None)
+xlsx_s = next((DATA_DIR / f'{mes_nombre}{yy}S.xlsx' for p in [DATA_DIR / f'{mes_nombre}{yy}S.xlsx',
+               DATA_DIR / f'{mes_nombre}{año}S.xlsx'] if p.exists()), None)
+
+has_xlsx = xlsx_e and xlsx_s and xlsx_e.exists() and xlsx_s.exists()
+if has_xlsx:
+    print("Leyendo xlsx (puede tardar)...")
+    xl_e = leer_xlsx(xlsx_e, 'entradas', año, mes)
+    xl_s = leer_xlsx(xlsx_s, 'salidas',  año, mes)
+    xl_horario_e = xl_e.groupby(xl_e.index.hour).mean()
+    xl_horario_s = xl_s.groupby(xl_s.index.hour).mean()
+
+# ── Gráfica ────────────────────────────────────────────────────────────────────
+fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=False)
+horas = range(24)
+
+for ax, pq_data, xl_data, titulo, color in [
+    (axes[0], pq_horario_e, xl_horario_e if has_xlsx else None, 'Entradas', '#2563eb'),
+    (axes[1], pq_horario_s, xl_horario_s if has_xlsx else None, 'Salidas',  '#dc2626'),
+]:
+    ax.plot(pq_data.index, pq_data.values, color=color, linewidth=2.5,
+            label='Parquet', zorder=3)
+    if has_xlsx:
+        ax.plot(xl_data.index, xl_data.values, color=color, linewidth=1.5,
+                linestyle='--', alpha=0.6, label='XLSX')
+
+    ax.axvspan(0, 5, alpha=0.05, color='gray')
+    ax.axvspan(22, 24, alpha=0.05, color='gray')
+    ax.set_title(f'{titulo} — {mes_nombre} {año}', fontsize=13)
+    ax.set_xlabel('Hora del día')
+    ax.set_ylabel('Promedio de validaciones por intervalo de 15 min')
+    ax.set_xticks(range(0, 24, 2))
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.savefig(PARQUET_DIR.parent / f'comparativa_{año}_{mes:02d}.png', dpi=150, bbox_inches='tight')
+plt.show()
+print("Gráfica guardada.")
