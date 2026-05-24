@@ -1,3 +1,6 @@
+#Antes de correr el cadigo no olviden descargar los paquetes y librerias:
+#pip install xgboost scikit-learn pandas numpy matplotlib pyarrow
+
 """
 Predicción de flujos de entradas - Sistema Troncal TransMilenio
 XGBoost con features de calendario y rezagos
