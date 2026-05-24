@@ -1,4 +1,4 @@
-#Antes de correr el cadigo no olviden descargar los paquetes y librerias:
+#Antes de correr el codigo no olviden descargar los paquetes y librerias:
 #pip install xgboost scikit-learn pandas numpy matplotlib pyarrow
 
 """
