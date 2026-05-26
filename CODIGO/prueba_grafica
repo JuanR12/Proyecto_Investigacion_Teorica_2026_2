@@ -114,7 +114,7 @@ for ax, pq_data, xl_data, titulo, color in [
     (axes[1], pq_horario_s, xl_horario_s if has_xlsx else None, 'Salidas',  '#dc2626'),
 ]:
     ax.plot(pq_data.index, pq_data.values, color=color, linewidth=2.5,
-            label='Parquet', zorder=3)
+            label='Parquet', zorder=3, alpha=0.3, linestyle=':')
     if has_xlsx:
         ax.plot(xl_data.index, xl_data.values, color=color, linewidth=1.5,
                 linestyle='--', alpha=0.6, label='XLSX')

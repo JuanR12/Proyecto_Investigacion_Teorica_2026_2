@@ -1,0 +1,66 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import matplotlib.dates as mdates
+from pathlib import Path
+
+PARQUET_DIR = Path(r'C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet')
+
+AÑOS = [2019, 2021, 2022, 2023, 2024, 2025]
+
+# ── Cargar datos ───────────────────────────────────────────────────────────────
+print("Cargando datos...")
+data = {}
+
+for año in AÑOS:
+    series_e, series_s = [], []
+
+    for fp in sorted(PARQUET_DIR.glob(f'{año}-*-entradas.parquet')):
+        df = pd.read_parquet(fp, columns=['datetime','entradas'])
+        series_e.append(df.groupby(df['datetime'].dt.date)['entradas'].sum())
+
+    for fp in sorted(PARQUET_DIR.glob(f'{año}-*-salidas.parquet')):
+        df = pd.read_parquet(fp, columns=['datetime','salidas'])
+        series_s.append(df.groupby(df['datetime'].dt.date)['salidas'].sum())
+
+    if not series_e or not series_s:
+        print(f"  [WARN] Sin datos para {año}")
+        continue
+
+    e = pd.concat(series_e).sort_index()
+    s = pd.concat(series_s).sort_index()
+    e.index = pd.to_datetime(e.index).map(lambda d: d.replace(year=2000))
+    s.index = pd.to_datetime(s.index).map(lambda d: d.replace(year=2000))
+    data[año] = (e, s)
+    print(f"  {año}: {len(e)} días entradas | {len(s)} días salidas")
+
+# ── Gráfica ────────────────────────────────────────────────────────────────────
+n     = len(data)
+fig, axes = plt.subplots(n, 1, figsize=(16, 3.5 * n), sharex=True)
+fmt_y = mticker.FuncFormatter(lambda x, _: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K')
+
+for ax, (año, (e, s)) in zip(axes, data.items()):
+    #ax.plot(e.index, e.values, color='#2563eb', linewidth=0.8, alpha=0.85, label='Entradas', linestyle=':', marker='')
+    #ax.plot(s.index, s.values, color='#dc2626', linewidth=0.8, alpha=0.85, label='Salidas', linestyle='-', marker='')
+    
+    ratio = ((1-e / s) * 100).dropna()
+    ax.plot(ratio.index, ratio.values, color='#16a34a', linewidth=0.8, alpha=0.85, label='Salidas/Entradas %')
+    ax.axhline(100, color='gray', linewidth=0.6, linestyle='--', alpha=0.5)
+
+    ax.set_ylabel(str(año), fontsize=12, fontweight='bold', rotation=0, labelpad=40, va='center')
+    #ax.yaxis.set_major_formatter(fmt_y)
+    ax.grid(True, alpha=0.2, linestyle='--')
+    ax.legend(loc='upper right', fontsize=9, framealpha=0.7)
+    #ax.set_ylim(0, 2_700_000)
+    ax.set_ylim(0, 100)
+    ax.set_xlim(pd.Timestamp('2000-01-01'), pd.Timestamp('2000-12-31'))
+
+axes[0].set_title('Entradas y Salidas diarias — Sistema Troncal Transmilenio', fontsize=14, pad=12)
+axes[-1].xaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
+axes[-1].xaxis.set_major_locator(mdates.MonthLocator())
+axes[-1].set_xlabel('Día del año', fontsize=11)
+
+plt.tight_layout()
+plt.savefig(PARQUET_DIR.parent / 'entradas_salidas_subplots.png', dpi=150, bbox_inches='tight')
+plt.show()
+print("Guardada: entradas_salidas_subplots.png")
