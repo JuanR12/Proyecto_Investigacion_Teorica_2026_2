@@ -22,13 +22,13 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 # ── #0 Estación objetivo ──────────────────────────────────────────────────────────
 # Cambiar este valor para predecir otra estación.
 # Los IDs válidos están en catalogo_estaciones.parquet (columna station_id).
-STATION_ID = "06000"
+STATION_ID = "07107"
 
 # ─────────────────────────────────────────────
 # 1. CARGA Y AGREGACIÓN
 # ─────────────────────────────────────────────
 
-RUTA_DATOS = r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\parquet"
+RUTA_DATOS = r"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet"
 archivos = sorted(glob.glob(f"{RUTA_DATOS}\\*-entradas.parquet"))
 
 if not archivos:
@@ -262,7 +262,7 @@ resultados_2025 = pd.DataFrame({
     "prediccion":  np.array(preds_2025).round().astype(int),
 })
 resultados_2025.to_csv(
-    rf"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\PREDICCIONES\validaciones_entrada_{STATION_ID}_pred_2025.csv",
+    rf"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\predicciones\validaciones_entrada_{STATION_ID}_pred_2025.csv",
     index=False
 )
 print("Predicciones estacion exportadas.")

@@ -16,12 +16,11 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 # CONFIGURACIÓN  — único valor a cambiar
 # ─────────────────────────────────────────────
 
-STATION_ID   = "06000"
+STATION_ID   = "07107"   # cambia al ID que quieras graficar
 
-RUTA_PARQUET = r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\parquet"
-RUTA_PRED    = rf"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\PREDICCIONES\validaciones_entrada_{STATION_ID}_pred_2025.csv"
-RUTA_SALIDA  = rf"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\PREDICCIONES\grafica_estacion_{STATION_ID}.png"
-
+RUTA_PARQUET = r"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet"
+RUTA_PRED    = rf"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\predicciones\validaciones_entrada_{STATION_ID}_pred_2025.csv"
+RUTA_SALIDA  = rf"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\predicciones\grafica_estacion_{STATION_ID}.png"
 # ─────────────────────────────────────────────
 # 1. CARGA DE PREDICCIÓN
 # ─────────────────────────────────────────────
@@ -119,31 +118,45 @@ else:
 # 5. FIGURA
 # ─────────────────────────────────────────────
 
+STATION_ID = "U. NACIONAL"
+
+
 n_panels = 2 if hay_real_pred else 3
-fig, axes = plt.subplots(n_panels, 1, figsize=(22, 5 * n_panels))
+fig, axes = plt.subplots(n_panels, 1, figsize=(22, 6 * n_panels))
+fig.patch.set_facecolor("#ffffff")
 fig.suptitle(
-    f"Estación {STATION_ID}  —  Predicción de entradas 2026 (XGBoost)",
-    fontsize=13, y=1.01
+    f"Estación {STATION_ID}  |  Predicción de entradas 2026 (XGBoost)",
+    fontsize=16, fontweight="bold"
 )
 
-COLOR_PRED = "#dc2626"   # rojo
-COLOR_REAL = "#2563eb"   # azul
+COLOR_PRED  = "#fdc0cc"   # rosa suave — predicción
+COLOR_REAL  = "#7aa9ce"   # azul medio — real
+COLOR_SHADE = "#feefc4"   # amarillo pálido — zonas nocturnas / fines de semana
+COLOR_ACC   = "#d5b9e4"   # lavanda — elementos secundarios (grid, anotaciones)
 
 # ── Panel 0: serie completa del período predicho ──────────────────────────────
 ax = axes[0]
 ax.plot(pred["datetime"], pred["prediccion"],
-        color=COLOR_PRED, linewidth=0.7, label="Predicción XGBoost", zorder=3)
+        color=COLOR_PRED, linewidth=1.4, label="Predicción XGBoost", zorder=3)
 if hay_real_pred:
     ax.plot(comp["datetime"], comp["entradas"],
-            color=COLOR_REAL, linewidth=0.7, alpha=0.7, label="Real", zorder=2)
+            color=COLOR_REAL, linewidth=1.4, alpha=0.8, label="Real", zorder=2)
 
-ax.set_title("Serie completa — período predicho")
-ax.set_ylabel("Entradas (intervalos 15 min)")
+ax.set_title("Serie completa — período predicho", fontsize=13)
+ax.set_ylabel("Entradas (intervalos 15 min)", fontsize=11)
 ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
 ax.xaxis.set_major_locator(mdates.WeekdayLocator(byweekday=0))
-plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha="right")
-ax.legend(fontsize=9)
-ax.grid(True, alpha=0.25)
+plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha="right", fontsize=10)
+ax.legend(fontsize=11)
+if hay_real_pred and len(comp) > 0:
+    ax.text(
+        0.99, 0.95,
+        f"MAE: {mae:,.1f}   RMSE: {rmse:,.1f}   MAPE: {mape:.1f}%",
+        transform=ax.transAxes,
+        fontsize=10, ha="right", va="top",
+        bbox=dict(boxstyle="round,pad=0.4", facecolor=COLOR_SHADE, edgecolor=COLOR_ACC, alpha=0.9)
+    )
+ax.grid(True, alpha=0.2, color=COLOR_ACC)
 
 # ── Panel 1: zoom primeras 2 semanas ─────────────────────────────────────────
 ax = axes[1]
@@ -151,19 +164,25 @@ corte_2s = INICIO_PRED + pd.Timedelta(weeks=2)
 mask_2s  = pred["datetime"] < corte_2s
 
 ax.plot(pred.loc[mask_2s, "datetime"], pred.loc[mask_2s, "prediccion"],
-        color=COLOR_PRED, linewidth=1.2, label="Predicción XGBoost")
+        color=COLOR_PRED, linewidth=2, label="Predicción XGBoost")
 if hay_real_pred:
     mask_2s_real = comp["datetime"] < corte_2s
     ax.plot(comp.loc[mask_2s_real, "datetime"], comp.loc[mask_2s_real, "entradas"],
-            color=COLOR_REAL, linewidth=1.2, alpha=0.8, label="Real")
+            color=COLOR_REAL, linewidth=2, alpha=0.85, label="Real")
 
-ax.set_title("Zoom: primeras 2 semanas")
-ax.set_ylabel("Entradas (intervalos 15 min)")
+# Sombreado de fines de semana en el zoom
+for fecha in pd.date_range(INICIO_PRED, corte_2s, freq="D"):
+    if fecha.weekday() >= 5:
+        ax.axvspan(fecha, fecha + pd.Timedelta(days=1),
+                   alpha=0.15, color=COLOR_SHADE, zorder=0)
+
+ax.set_title("Zoom: primeras 2 semanas", fontsize=13)
+ax.set_ylabel("Entradas (intervalos 15 min)", fontsize=11)
 ax.xaxis.set_major_formatter(mdates.DateFormatter("%a %d %b"))
 ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
-plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha="right")
-ax.legend(fontsize=9)
-ax.grid(True, alpha=0.25)
+plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha="right", fontsize=10)
+ax.legend(fontsize=11)
+ax.grid(True, alpha=0.2, color=COLOR_ACC)
 
 # ── Panel 2: perfil horario promedio ─────────────────────────────────────────
 #ax = axes[2]
@@ -207,7 +226,7 @@ ax.grid(True, alpha=0.25)
 #    ax.grid(True, alpha=0.25)
     
 
-plt.tight_layout()
+fig.subplots_adjust(top=0.93, hspace=0.35)
 plt.savefig(RUTA_SALIDA, dpi=150, bbox_inches="tight")
 plt.show()
 print(f"\nFigura guardada en {RUTA_SALIDA}")

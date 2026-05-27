@@ -26,7 +26,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 # 1. CARGA Y AGREGACIÓN
 # ─────────────────────────────────────────────
 
-RUTA_DATOS = r"" # Ubiquen la ruta donde se encuentren los archivos de la base de datos aquí
+RUTA_DATOS = r"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet" # Ubiquen la ruta donde se encuentren los archivos de la base de datos aquí
 archivos = sorted(glob.glob(f"{RUTA_DATOS}\\*-entradas.parquet"))
 
 if not archivos:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 PARQUET_DIR = Path(r'C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet')
 
-AÑOS = [2019, 2021, 2022, 2023, 2024, 2025]
+AÑOS = [2019, 2022, 2023, 2024, 2025]
 
 # ── Cargar datos ───────────────────────────────────────────────────────────────
 print("Cargando datos...")
