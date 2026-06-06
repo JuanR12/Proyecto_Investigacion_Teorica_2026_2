@@ -5,25 +5,30 @@ y los contrasta con el CSV de predicciones del forecasting recursivo.
 """
 
 import glob
+import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from config import RUTA_PARQUET, RUTA_PREDS, RUTA_FIGURAS
+
 # ─────────────────────────────────────────────
 # RUTAS
 # ─────────────────────────────────────────────
 
-RUTA_PARQUET = r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\parquet"
-RUTA_PRED    = r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\PREDICCIONES\predicciones_2025_prueba.csv"
-RUTA_SALIDA  = r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\PREDICCIONES\comparacion_2025.png"
+RUTA_PRED   = RUTA_PREDS   / "predicciones_2025_prueba.csv"
+RUTA_SALIDA = RUTA_FIGURAS / "comparacion_2025.png"
 
 # ─────────────────────────────────────────────
 # 1. DATOS REALES 2025
 # ─────────────────────────────────────────────
 
-archivos_2025 = sorted(glob.glob(f"{RUTA_PARQUET}\\2025-*-entradas.parquet"))
+archivos_2025 = sorted(glob.glob(str(RUTA_PARQUET / "2025-*-entradas.parquet")))
 
 if not archivos_2025:
     raise FileNotFoundError("No se encontraron archivos de 2025 en la carpeta de parquets.")

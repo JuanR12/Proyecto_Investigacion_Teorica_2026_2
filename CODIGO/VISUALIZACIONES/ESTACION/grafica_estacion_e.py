@@ -18,9 +18,14 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 STATION_ID   = "07107"   # cambia al ID que quieras graficar
 
-RUTA_PARQUET = r"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet"
-RUTA_PRED    = rf"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\predicciones\validaciones_entrada_{STATION_ID}_pred_2025.csv"
-RUTA_SALIDA  = rf"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\predicciones\grafica_estacion_{STATION_ID}.png"
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from config import RUTA_PARQUET, RUTA_PREDS, RUTA_FIGURAS
+
+RUTA_PRED   = RUTA_PREDS   / f"validaciones_entrada_{STATION_ID}_pred_2025.csv"
+RUTA_SALIDA = RUTA_FIGURAS / f"grafica_estacion_{STATION_ID}.png"
 # ─────────────────────────────────────────────
 # 1. CARGA DE PREDICCIÓN
 # ─────────────────────────────────────────────
@@ -39,7 +44,7 @@ print(f"Predicción: {INICIO_PRED.date()} -> {FIN_PRED.date()}  ({len(pred):,} i
 #    y para el año de validación 2025 (perfil horario)
 # ─────────────────────────────────────────────
 
-archivos = sorted(glob.glob(rf"{RUTA_PARQUET}\*-entradas.parquet"))
+archivos = sorted(glob.glob(str(RUTA_PARQUET / "*-entradas.parquet")))
 if not archivos:
     raise FileNotFoundError(f"No se encontraron parquets en {RUTA_PARQUET}")
 

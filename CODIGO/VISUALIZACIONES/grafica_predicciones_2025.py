@@ -1,9 +1,20 @@
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+from pathlib import Path
 
-RUTA_PREDICCION = r"" # Ruta del archivo de predicciones (verificar que el nombre coincida)
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from config import RUTA_PREDS, RUTA_FIGURAS
+
+# ============================================================
+# CONFIGURACIÓN
+# Nota: el CSV de predicciones debe tener columnas 'datetime',
+# 'real' y 'prediccion'. Ajusta el nombre si es necesario.
+# ============================================================
+RUTA_PREDICCION = RUTA_PREDS / "predicciones_2025_prueba.csv"
 
 pred = pd.read_csv(RUTA_PREDICCION, parse_dates=["datetime"])
 pred["prediccion"] = pred["prediccion"].clip(lower=0).round().astype(int)
@@ -47,7 +58,7 @@ ax2.legend(fontsize=9)
 ax2.grid(True, alpha=0.2)
 
 fig1.tight_layout()
-fig1.savefig("prediccion_2025_15min.png", dpi=150, bbox_inches="tight")
+fig1.savefig(RUTA_FIGURAS / "prediccion_2025_15min.png", dpi=150, bbox_inches="tight")
 
 # ── Figura 2: totales diarios ─────────────────────────────────────────────────
 def fmt_millones(x, _):
@@ -70,7 +81,7 @@ ax3.legend(fontsize=9)
 ax3.grid(True, alpha=0.2)
 
 fig2.tight_layout()
-fig2.savefig("prediccion_2025_diaria.png", dpi=150, bbox_inches="tight")
+fig2.savefig(RUTA_FIGURAS / "prediccion_2025_diaria.png", dpi=150, bbox_inches="tight")
 
 plt.show()
-print("Guardado: prediccion_2025_15min.png  |  prediccion_2025_diaria.png")
+print(f"Guardado: {RUTA_FIGURAS / 'prediccion_2025_15min.png'}  |  {RUTA_FIGURAS / 'prediccion_2025_diaria.png'}")

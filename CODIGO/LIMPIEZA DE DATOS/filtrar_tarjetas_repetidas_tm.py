@@ -6,15 +6,15 @@ from pathlib import Path
 import pandas as pd
 
 # ============================================================
-# CONFIGURACIÓN GENERAL
+# CONFIGURACIÓN GENERAL — ajusta las rutas antes de ejecutar
 # ============================================================
-# Carpeta donde están los archivos de entrada.
-# Cambia esta ruta a la carpeta real donde guardas las bases crudas.
-CARPETA_DATOS = Path(r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS")
+# Carpeta donde están los archivos CSV de entrada (datos crudos transaccionales).
+# Nota: estos archivos NO son los parquet del pipeline principal.
+CARPETA_DATOS = Path(r"C:\ruta\a\tu\carpeta\de\datos")
 
-# Carpeta donde se guardarán los resultados.
+# Carpeta donde se guardarán los resultados filtrados.
 # Se crea automáticamente si no existe.
-CARPETA_SALIDA = Path(r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\FILTROS")
+CARPETA_SALIDA = Path(r"C:\ruta\a\tu\carpeta\de\salida")
 
 # Nombre exacto del archivo a procesar dentro de CARPETA_DATOS.
 # Ejemplo: "20260408.csv"

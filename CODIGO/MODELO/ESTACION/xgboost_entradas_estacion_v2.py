@@ -1,6 +1,3 @@
-#Antes de correr el codigo no olviden descargar los paquetes y librerias:
-#pip install xgboost scikit-learn pandas numpy matplotlib pyarrow
-
 """
 Predicción de flujos de entradas - Sistema Troncal TransMilenio
 XGBoost con features de calendario y rezagos
@@ -16,21 +13,31 @@ Cada parquet tiene columnas: linea_id, station_id, datetime, entradas
 """
 
 import glob
+import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from config import RUTA_PARQUET, RUTA_PREDS, RUTA_FIGURAS
+
+# ── #0 Estación objetivo ──────────────────────────────────────────────────────────
+# Cambiar este valor para predecir otra estación.
+# Los IDs válidos están en catalogo_estaciones.parquet (columna station_id).
+STATION_ID = "02000"
+
 # ─────────────────────────────────────────────
 # 1. CARGA Y AGREGACIÓN
 # ─────────────────────────────────────────────
 
-RUTA_DATOS = r"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet" # Ubiquen la ruta donde se encuentren los archivos de la base de datos aquí
-archivos = sorted(glob.glob(f"{RUTA_DATOS}\\*-entradas.parquet"))
+archivos = sorted(glob.glob(str(RUTA_PARQUET / "*-entradas.parquet")))
 
 if not archivos:
-    raise FileNotFoundError(f"No se encontraron archivos en {RUTA_DATOS}")
+    raise FileNotFoundError(f"No se encontraron archivos en {RUTA_PARQUET}")
 
 print(f"Archivos encontrados: {len(archivos)}")
 
@@ -39,12 +46,17 @@ for archivo in archivos:
     df_mes = pd.read_parquet(archivo)
     # Agregado a nivel sistema: suma de entradas por intervalo de 15 min
     # Si se quiere trabajar por troncal, agregar linea_id al groupby
-    agg = df_mes.groupby("datetime", as_index=False)["entradas"].sum()
+    df_est = df_mes[df_mes["station_id"] == STATION_ID]
+    if df_est.empty:
+        continue
+    agg = df_est.groupby("datetime", as_index=False)["entradas"].sum()
     partes.append(agg)
 
 df = pd.concat(partes, ignore_index=True)
 df["datetime"] = pd.to_datetime(df["datetime"])
 df = df.sort_values("datetime").reset_index(drop=True)
+#Filtro de datos desde 2021
+df = df[df["datetime"] >= "2022-01-01"].reset_index(drop=True)
 
 print(f"Rango temporal: {df['datetime'].min()} -> {df['datetime'].max()}")
 print(f"Total filas: {len(df):,}")
@@ -124,48 +136,24 @@ FEATURES = [
 # ─────────────────────────────────────────────
 # 4. PARTICIÓN TEMPORAL
 # ─────────────────────────────────────────────
-# Train: 2021-2023  |  Validación: 2024  |  Test: 2025
+# Train: 2021-2023  |  Validación: 2024
 
 
-mask_train = df["datetime"] < "2024-01-01"
-mask_val   = (df["datetime"] >= "2024-01-01") & (df["datetime"] < "2025-01-01")
-mask_test  = df["datetime"] >= "2025-01-01"
+mask_train = df["datetime"] < "2025-01-01"
+mask_val   = (df["datetime"] >= "2025-01-01") & (df["datetime"] < "2025-04-01")
 
 train = df[mask_train]
 val   = df[mask_val]
-test  = df[mask_test]
 
 X_train, y_train = train[FEATURES], train["entradas"]
 X_val,   y_val   = val[FEATURES],   val["entradas"]
-X_test,  y_test  = test[FEATURES],  test["entradas"]
 
 print(f"\nTrain:      {train['datetime'].min().date()} -> {train['datetime'].max().date()} ({len(train):,} filas)")
 print(f"Validación: {val['datetime'].min().date()}   -> {val['datetime'].max().date()}   ({len(val):,} filas)")
-print(f"Test:       {test['datetime'].min().date()}  -> {test['datetime'].max().date()}  ({len(test):,} filas)")
 
 # ─────────────────────────────────────────────
 # 5. BASELINES (umbrales mínimos a superar)
 # ─────────────────────────────────────────────
-
-# Baseline 1: promedio histórico por (hour, minute, weekday)
-# Calculado solo sobre train para no filtrar información del futuro
-perfil = (
-    train.groupby(["hour_sin", "hour_cos", "dow_sin", "dow_cos"])["entradas"]
-    .mean()
-    .reset_index()
-    .rename(columns={"entradas": "baseline_perfil"})
-)
-
-# Para el test se usa el mismo agrupador
-test_base = test.merge(perfil, on=["hour_sin", "hour_cos", "dow_sin", "dow_cos"], how="left")
-baseline_pred = test_base["baseline_perfil"].fillna(train["entradas"].mean()).values
-
-mae_base  = mean_absolute_error(y_test, baseline_pred)
-rmse_base = mean_squared_error(y_test, baseline_pred) ** 0.5
-print(f"\nBaseline (perfil histórico) sobre test 2025:")
-print(f"  MAE:  {mae_base:>10,.0f} pasajeros")
-print(f"  RMSE: {rmse_base:>10,.0f} pasajeros")
-
 # ─────────────────────────────────────────────
 # 6. APLICACIÓN DEL MODELO XGBOOST
 # ─────────────────────────────────────────────
@@ -189,10 +177,63 @@ model.fit(
     verbose=50,   # imprime cada 50 iteraciones
 )
 
-pred_val  = model.predict(X_val)
-pred_val = np.clip(pred_val, 0, None)
-pred_test = model.predict(X_test)
-pred_test = np.clip(pred_test, 0, None)
+pred_val = np.clip(model.predict(X_val), 0, None)
+
+# ── Forecasting recursivo 2025 por trimestres ─────────────────────────────
+# Cada trimestre se siembra con valores reales del período anterior,
+# lo que evita la acumulación de error a lo largo del año completo.
+
+BUFFER = 672
+trimestres = [
+    ("2025-01-01", "2025-06-01")
+]
+
+preds_2025 = []
+futuro_list = []
+
+for inicio, fin in trimestres:
+    # Semilla: últimos 672 valores reales anteriores al inicio del trimestre
+    hist = list(
+        df[df["datetime"] < inicio]["entradas"].values[-BUFFER:]
+    )
+
+    rango = pd.date_range(inicio, fin, freq="15min", inclusive="left")
+
+    for ts in rango:
+        lag15   = hist[-1]
+        lag30   = hist[-2]
+        lag1h   = hist[-4]
+        lag24h  = hist[-96]
+        lag1w   = hist[-672]
+        roll1h  = np.mean(hist[-4:])
+        roll24h = np.mean(hist[-96:])
+
+        fila = {
+            "hour_sin": np.sin(2*np.pi*ts.hour/24),
+            "hour_cos": np.cos(2*np.pi*ts.hour/24),
+            "min_sin":  np.sin(2*np.pi*ts.minute/60),
+            "min_cos":  np.cos(2*np.pi*ts.minute/60),
+            "dow_sin":  np.sin(2*np.pi*ts.weekday()/7),
+            "dow_cos":  np.cos(2*np.pi*ts.weekday()/7),
+            "week_sin": np.sin(2*np.pi*ts.isocalendar()[1]/52),
+            "week_cos": np.cos(2*np.pi*ts.isocalendar()[1]/52),
+            "month": ts.month, "year": ts.year,
+            "es_fin_de_semana": int(ts.weekday() >= 5),
+            "lag_15m": lag15, "lag_30m": lag30, "lag_1h": lag1h,
+            "lag_24h": lag24h, "lag_1w": lag1w,
+            "rolling_1h": roll1h, "rolling_24h": roll24h,
+        }
+
+        X_fut = pd.DataFrame([fila])[FEATURES]
+        pred  = float(np.clip(model.predict(X_fut), 0, None)[0])
+        preds_2025.append(pred)
+        futuro_list.append(ts)
+        hist.append(pred)
+        hist.pop(0)
+
+    print(f"Trimestre {inicio[:7]} -> {fin[:7]} completado ({len(rango):,} intervalos)")
+
+futuro = pd.DatetimeIndex(futuro_list)
 
 # ─────────────────────────────────────────────
 # 7. MÉTRICAS
@@ -200,15 +241,12 @@ pred_test = np.clip(pred_test, 0, None)
 
 mae_val   = mean_absolute_error(y_val, pred_val)
 rmse_val  = mean_squared_error(y_val, pred_val) ** 0.5
-mae_test  = mean_absolute_error(y_test, pred_test)
-rmse_test = mean_squared_error(y_test, pred_test) ** 0.5
+
 
 print("\n" + "="*45)
 print(f"{'':30} {'MAE':>6}  {'RMSE':>8}")
 print("="*45)
-print(f"{'Baseline (perfil histórico) test':30} {mae_base:>8,.0f}  {rmse_base:>8,.0f}")
-print(f"{'XGBoost validación 2024':30} {mae_val:>8,.0f}  {rmse_val:>8,.0f}")
-print(f"{'XGBoost test 2025':30} {mae_test:>8,.0f}  {rmse_test:>8,.0f}")
+print(f"{'XGBoost validación 2025':30} {mae_val:>8,.0f}  {rmse_val:>8,.0f}")
 print("="*45)
 print("Si XGBoost no supera el baseline, revisar features o datos.")
 
@@ -216,18 +254,10 @@ print("Si XGBoost no supera el baseline, revisar features o datos.")
 # EXTRA. EXPORTAR PREDICCIÓN
 # ─────────────────────────────────────────────
 
-resultados = pd.DataFrame({
-    "datetime": test["datetime"].values,
-    "real":     y_test.values,
-    "prediccion": pred_test,
-    "error_absoluto": np.abs(y_test.values - pred_test)
-})
-
-resultados["prediccion"] = pred_test.round().astype(int)
-resultados["error_absoluto"] = (resultados["real"] - resultados["prediccion"]).abs()
-
-resultados.to_csv(r"predicciones_2025.csv", index=False) # Pueden poner una ruta antes de predicciones_2025.csv para guardar ahí los datos de las predicciones
-print("Predicciones exportadas en predicciones_2025.csv")
+resultados_2025.to_csv(
+    RUTA_PREDS / f"validaciones_entrada_{STATION_ID}_pred_2025.csv",
+    index=False
+)
 
 # ─────────────────────────────────────────────
 # 8. VISUALIZACIONES
@@ -236,23 +266,20 @@ print("Predicciones exportadas en predicciones_2025.csv")
 fig, axes = plt.subplots(3, 1, figsize=(24, 14))
 fig.suptitle("XGBoost TransMilenio: Entradas sistema agregado", fontsize=14)
 
-# -- Panel 1: test completo 2025
+# -- Panel 1
 ax = axes[0]
-ax.plot(test["datetime"], y_test.values, label="Real", color="steelblue", linewidth=0.8)
-ax.plot(test["datetime"], pred_test, label="XGBoost", color="tomato", linewidth=0.8, alpha=0.85)
-ax.set_title("Test 2025: serie completa")
+ax.plot(futuro, preds_2025, label="XGBoost 2025", color="tomato", linewidth=0.8)
+ax.set_title("Predicción 2026: serie completa")
 ax.set_ylabel("Entradas")
 ax.legend()
 ax.grid(True, alpha=0.3)
 
-# -- Panel 2: zoom dos semanas de test
-dos_semanas = test["datetime"] < (test["datetime"].min() + pd.Timedelta(weeks=2))
+# -- Panel 2
 ax = axes[1]
-ax.plot(test.loc[dos_semanas, "datetime"], y_test[dos_semanas].values,
-        label="Real", color="steelblue")
-ax.plot(test.loc[dos_semanas, "datetime"], pred_test[dos_semanas],
-        label="XGBoost", color="tomato", alpha=0.85)
-ax.set_title("Zoom: primeras 2 semanas de test 2025")
+dos_semanas = futuro < (futuro.min() + pd.Timedelta(weeks=2))
+ax.plot(futuro[dos_semanas], np.array(preds_2025)[dos_semanas],
+        label="XGBoost 2025", color="tomato")
+ax.set_title("Zoom: primeras 2 semanas de predicción 2026")
 ax.set_ylabel("Entradas")
 ax.legend()
 ax.grid(True, alpha=0.3)
@@ -290,6 +317,6 @@ ax.set_xlabel("Importancia relativa")
 ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig("resultados_xgboost.png", dpi=150, bbox_inches="tight")
+plt.savefig(RUTA_FIGURAS / f"prediccion_entradas_{STATION_ID}_v2.png", dpi=150, bbox_inches="tight")
 plt.show()
-print("Figura guardada en resultados_xgboost.png")
+print(f"Figura guardada en {RUTA_FIGURAS / f'prediccion_entradas_{STATION_ID}_v2.png'}")

@@ -16,9 +16,10 @@ import pandas as pd
 from pathlib import Path
 from datetime import timedelta
 
-DATA_DIR    = Path("datos")
-PARQUET_DIR = Path("outputs/parquet")
-OUTPUT_DIR  = Path("outputs")
+PROYECTO_RAIZ = Path(__file__).resolve().parent.parent
+DATA_DIR    = PROYECTO_RAIZ / "datos"
+PARQUET_DIR = PROYECTO_RAIZ / "outputs" / "parquet"
+OUTPUT_DIR  = PROYECTO_RAIZ / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 TARGET_YEARS = {2019, 2022, 2023, 2024, 2025, 2026}

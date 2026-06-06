@@ -18,9 +18,14 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 STATION_ID   = "02000"
 
-RUTA_PARQUET = r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\parquet"
-RUTA_PRED    = rf"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\PREDICCIONES\validaciones_salida_{STATION_ID}_pred_2025.csv"
-RUTA_SALIDA  = rf"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\PREDICCIONES\grafica_estacion_{STATION_ID}.png"
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from config import RUTA_PARQUET, RUTA_PREDS, RUTA_FIGURAS
+
+RUTA_PRED   = RUTA_PREDS   / f"validaciones_salida_{STATION_ID}_pred_2025.csv"
+RUTA_SALIDA = RUTA_FIGURAS / f"grafica_estacion_{STATION_ID}.png"
 
 # ─────────────────────────────────────────────
 # 1. CARGA DE PREDICCIÓN
@@ -40,7 +45,7 @@ print(f"Predicción: {INICIO_PRED.date()} -> {FIN_PRED.date()}  ({len(pred):,} i
 #    y para el año de validación 2025 (perfil horario)
 # ─────────────────────────────────────────────
 
-archivos = sorted(glob.glob(rf"{RUTA_PARQUET}\*-salidas.parquet"))
+archivos = sorted(glob.glob(str(RUTA_PARQUET / "*-salidas.parquet")))
 if not archivos:
     raise FileNotFoundError(f"No se encontraron parquets en {RUTA_PARQUET}")
 

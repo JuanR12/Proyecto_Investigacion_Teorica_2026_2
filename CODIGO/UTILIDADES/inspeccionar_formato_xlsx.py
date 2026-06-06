@@ -1,8 +1,11 @@
 import random
-import pandas as pd
+import sys
 from pathlib import Path
+import pandas as pd
 
-DATA_DIR = Path(r'C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\datos')
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from config import RUTA_DATOS as DATA_DIR
 
 AÑOS = [2019, 2021, 2022, 2023, 2024, 2025, 2026]
 MESES_INV = {

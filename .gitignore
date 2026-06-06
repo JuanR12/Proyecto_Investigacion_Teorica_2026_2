@@ -12,13 +12,12 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 
-# Salidas generadas
-salidas_limpias/
-*.png
+# Datos procesados pesados (reproducibles con el pipeline)
+outputs/parquet/
+outputs/predicciones/
 
-# Datos pesados o sensibles
+# Datos crudos descargados por el pipeline
 datos/
-*.csv
 
 # Sistema operativo / editor
 .DS_Store

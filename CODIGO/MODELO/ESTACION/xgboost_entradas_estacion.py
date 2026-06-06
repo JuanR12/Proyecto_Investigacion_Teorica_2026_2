@@ -13,11 +13,17 @@ Cada parquet tiene columnas: linea_id, station_id, datetime, entradas
 """
 
 import glob
+import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from config import RUTA_PARQUET, RUTA_PREDS, RUTA_FIGURAS
 
 # ── #0 Estación objetivo ──────────────────────────────────────────────────────────
 # Cambiar este valor para predecir otra estación.
@@ -28,11 +34,10 @@ STATION_ID = "07107"
 # 1. CARGA Y AGREGACIÓN
 # ─────────────────────────────────────────────
 
-RUTA_DATOS = r"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet"
-archivos = sorted(glob.glob(f"{RUTA_DATOS}\\*-entradas.parquet"))
+archivos = sorted(glob.glob(str(RUTA_PARQUET / "*-entradas.parquet")))
 
 if not archivos:
-    raise FileNotFoundError(f"No se encontraron archivos en {RUTA_DATOS}")
+    raise FileNotFoundError(f"No se encontraron archivos en {RUTA_PARQUET}")
 
 print(f"Archivos encontrados: {len(archivos)}")
 
@@ -262,7 +267,7 @@ resultados_2025 = pd.DataFrame({
     "prediccion":  np.array(preds_2025).round().astype(int),
 })
 resultados_2025.to_csv(
-    rf"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\predicciones\validaciones_entrada_{STATION_ID}_pred_2025.csv",
+    RUTA_PREDS / f"validaciones_entrada_{STATION_ID}_pred_2025.csv",
     index=False
 )
 print("Predicciones estacion exportadas.")
@@ -325,6 +330,6 @@ ax.set_xlabel("Importancia relativa")
 ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig("prediccion_2026_prueba.png", dpi=150, bbox_inches="tight")
+plt.savefig(RUTA_FIGURAS / f"prediccion_entradas_{STATION_ID}.png", dpi=150, bbox_inches="tight")
 plt.show()
-print("Figura guardada en prediccion_2026_prueba.png")
+print(f"Figura guardada en {RUTA_FIGURAS / f'prediccion_entradas_{STATION_ID}.png'}")

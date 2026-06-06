@@ -1,50 +1,47 @@
 """
-Predicción de flujos de entradas - Sistema Troncal TransMilenio
+Predicción de flujos de salidas - Sistema Troncal TransMilenio
 XGBoost con features de calendario y rezagos
 
 Estructura esperada de archivos:
     datos/
-        2021-01-entradas.parquet
-        2021-02-entradas.parquet
+        2021-01-salidas.parquet
+        2021-02-salidas.parquet
         ...
-        2025-12-entradas.parquet
+        2025-12-salidas.parquet
 
-Cada parquet tiene columnas: linea_id, station_id, datetime, entradas
+Cada parquet tiene columnas: linea_id, station_id, datetime, salidas
 """
 
 import glob
+import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-# ── #0 Estación objetivo ──────────────────────────────────────────────────────────
-# Cambiar este valor para predecir otra estación.
-# Los IDs válidos están en catalogo_estaciones.parquet (columna station_id).
-STATION_ID = "02000"
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from config import RUTA_PARQUET, RUTA_PREDS, RUTA_FIGURAS
 
 # ─────────────────────────────────────────────
 # 1. CARGA Y AGREGACIÓN
 # ─────────────────────────────────────────────
 
-RUTA_DATOS = r"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet"
-archivos = sorted(glob.glob(f"{RUTA_DATOS}\\*-entradas.parquet"))
+archivos = sorted(glob.glob(str(RUTA_PARQUET / "*-salidas.parquet")))
 
 if not archivos:
-    raise FileNotFoundError(f"No se encontraron archivos en {RUTA_DATOS}")
+    raise FileNotFoundError(f"No se encontraron archivos en {RUTA_PARQUET}")
 
 print(f"Archivos encontrados: {len(archivos)}")
 
 partes = []
 for archivo in archivos:
     df_mes = pd.read_parquet(archivo)
-    # Agregado a nivel sistema: suma de entradas por intervalo de 15 min
+    # Agregado a nivel sistema: suma de salidas por intervalo de 15 min
     # Si se quiere trabajar por troncal, agregar linea_id al groupby
-    df_est = df_mes[df_mes["station_id"] == STATION_ID]
-    if df_est.empty:
-        continue
-    agg = df_est.groupby("datetime", as_index=False)["entradas"].sum()
+    agg = df_mes.groupby("datetime", as_index=False)["salidas"].sum()
     partes.append(agg)
 
 df = pd.concat(partes, ignore_index=True)
@@ -72,7 +69,7 @@ if len(huecos) > 0:
     print("Los lags calculados sobre filas (shift) serán incorrectos en esas posiciones.")
     # Rellenar con 0 para mantener la secuencia temporal intacta
     df = df.set_index("datetime").reindex(rango_completo, fill_value=0).reset_index()
-    df.columns = ["datetime", "entradas"]
+    df.columns = ["datetime", "salidas"]
     print(f"Huecos rellenados con 0. Filas totales ahora: {len(df):,}")
 else:
     print("Sin huecos temporales. Serie completa.")
@@ -104,16 +101,22 @@ df["year"]      = df["datetime"].dt.year
 # Indicadores binarios
 df["es_fin_de_semana"] = (df["datetime"].dt.weekday >= 5).astype(int)
 
+# Festivos de fecha fija en Colombia
+FESTIVOS_FIJOS = {(1, 1), (5, 1), (7, 20), (8, 7), (12, 8), (12, 25)}
+df["es_festivo_fijo"] = df["datetime"].apply(
+    lambda ts: int((ts.month, ts.day) in FESTIVOS_FIJOS)
+)
+
 # Rezagos temporales (shift sobre filas, válido solo si la serie no tiene huecos)
-df["lag_15m"]   = df["entradas"].shift(1)    # 15 min atrás
-df["lag_30m"]   = df["entradas"].shift(2)    # 30 min atrás
-df["lag_1h"]    = df["entradas"].shift(4)    # 1 hora atrás
-df["lag_24h"]   = df["entradas"].shift(96)   # mismo intervalo ayer
-df["lag_1w"]    = df["entradas"].shift(672)  # mismo intervalo semana pasada
+df["lag_15m"]   = df["salidas"].shift(1)    # 15 min atrás
+df["lag_30m"]   = df["salidas"].shift(2)    # 30 min atrás
+df["lag_1h"]    = df["salidas"].shift(4)    # 1 hora atrás
+df["lag_24h"]   = df["salidas"].shift(96)   # mismo intervalo ayer
+df["lag_1w"]    = df["salidas"].shift(672)  # mismo intervalo semana pasada
 
 # Promedios móviles (ventanas sobre filas pasadas)
-df["rolling_1h"]  = df["entradas"].shift(1).rolling(4).mean()    # promedio última hora
-df["rolling_24h"] = df["entradas"].shift(1).rolling(96).mean()   # promedio último día
+df["rolling_1h"]  = df["salidas"].shift(1).rolling(4).mean()    # promedio última hora
+df["rolling_24h"] = df["salidas"].shift(1).rolling(96).mean()   # promedio último día
 
 df = df.dropna().reset_index(drop=True)
 
@@ -124,6 +127,7 @@ FEATURES = [
     "week_sin", "week_cos",
     "month", "year",
     "es_fin_de_semana",
+    "es_festivo_fijo",        # <-- línea nueva
     "lag_15m", "lag_30m", "lag_1h", "lag_24h", "lag_1w",
     "rolling_1h", "rolling_24h",
 ]
@@ -134,14 +138,14 @@ FEATURES = [
 # Train: 2021-2023  |  Validación: 2024
 
 
-mask_train = df["datetime"] < "2025-01-01"
-mask_val   = (df["datetime"] >= "2025-01-01") & (df["datetime"] < "2025-04-01")
+mask_train = df["datetime"] < "2024-01-01"
+mask_val   = (df["datetime"] >= "2024-01-01") & (df["datetime"] < "2025-01-01")
 
 train = df[mask_train]
 val   = df[mask_val]
 
-X_train, y_train = train[FEATURES], train["entradas"]
-X_val,   y_val   = val[FEATURES],   val["entradas"]
+X_train, y_train = train[FEATURES], train["salidas"]
+X_val,   y_val   = val[FEATURES],   val["salidas"]
 
 print(f"\nTrain:      {train['datetime'].min().date()} -> {train['datetime'].max().date()} ({len(train):,} filas)")
 print(f"Validación: {val['datetime'].min().date()}   -> {val['datetime'].max().date()}   ({len(val):,} filas)")
@@ -180,7 +184,7 @@ pred_val = np.clip(model.predict(X_val), 0, None)
 
 BUFFER = 672
 trimestres = [
-    ("2025-01-01", "2025-06-01")
+    ("2025-01-01", "2025-04-01")
 ]
 
 preds_2025 = []
@@ -189,7 +193,7 @@ futuro_list = []
 for inicio, fin in trimestres:
     # Semilla: últimos 672 valores reales anteriores al inicio del trimestre
     hist = list(
-        df[df["datetime"] < inicio]["entradas"].values[-BUFFER:]
+        df[df["datetime"] < inicio]["salidas"].values[-BUFFER:]
     )
 
     rango = pd.date_range(inicio, fin, freq="15min", inclusive="left")
@@ -214,6 +218,7 @@ for inicio, fin in trimestres:
             "week_cos": np.cos(2*np.pi*ts.isocalendar()[1]/52),
             "month": ts.month, "year": ts.year,
             "es_fin_de_semana": int(ts.weekday() >= 5),
+            "es_festivo_fijo": int((ts.month, ts.day) in FESTIVOS_FIJOS),
             "lag_15m": lag15, "lag_30m": lag30, "lag_1h": lag1h,
             "lag_24h": lag24h, "lag_1w": lag1w,
             "rolling_1h": roll1h, "rolling_24h": roll24h,
@@ -249,20 +254,15 @@ print("Si XGBoost no supera el baseline, revisar features o datos.")
 # EXTRA. EXPORTAR PREDICCIÓN
 # ─────────────────────────────────────────────
 
-# Reemplaza esto:
+resultados_2025 = pd.DataFrame({
+    "datetime":    futuro,
+    "prediccion":  np.array(preds_2025).round().astype(int),
+})
 resultados_2025.to_csv(
-    rf"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\PREDICCIONES\validaciones_entrada_{STATION_ID}_pred_2025.csv",
+    RUTA_PREDS / "validaciones_salidas_pred_2025.csv",
     index=False
 )
-
-# Por esto:
-from pathlib import Path
-RUTA_PRED_OUT = Path(r"C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\predicciones")
-RUTA_PRED_OUT.mkdir(parents=True, exist_ok=True)
-resultados_2025.to_csv(
-    RUTA_PRED_OUT / f"validaciones_entrada_{STATION_ID}_pred_2025.csv",
-    index=False
-)
+print("Predicciones estacion exportadas.")
 
 # ─────────────────────────────────────────────
 # 8. VISUALIZACIONES
@@ -273,7 +273,7 @@ fig.suptitle("XGBoost TransMilenio: Entradas sistema agregado", fontsize=14)
 
 # -- Panel 1
 ax = axes[0]
-ax.plot(futuro, preds_2025, label="XGBoost 2025", color="tomato", linewidth=0.8)
+ax.plot(futuro, preds_2025, label="XGBoost 2025", color="pink", linewidth=0.8)
 ax.set_title("Predicción 2026: serie completa")
 ax.set_ylabel("Entradas")
 ax.legend()
@@ -283,7 +283,7 @@ ax.grid(True, alpha=0.3)
 ax = axes[1]
 dos_semanas = futuro < (futuro.min() + pd.Timedelta(weeks=2))
 ax.plot(futuro[dos_semanas], np.array(preds_2025)[dos_semanas],
-        label="XGBoost 2025", color="tomato")
+        label="XGBoost 2025", color="pink")
 ax.set_title("Zoom: primeras 2 semanas de predicción 2026")
 ax.set_ylabel("Entradas")
 ax.legend()
@@ -322,6 +322,6 @@ ax.set_xlabel("Importancia relativa")
 ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig("prediccion_2026_prueba.png", dpi=150, bbox_inches="tight")
+plt.savefig(RUTA_FIGURAS / "prediccion_2026_salidas_sistema.png", dpi=150, bbox_inches="tight")
 plt.show()
-print("Figura guardada en prediccion_2026_prueba.png")
+print(f"Figura guardada en {RUTA_FIGURAS / 'prediccion_2026_salidas_sistema.png'}")

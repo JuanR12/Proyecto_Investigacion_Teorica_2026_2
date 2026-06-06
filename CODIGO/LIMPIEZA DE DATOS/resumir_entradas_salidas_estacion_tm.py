@@ -10,10 +10,10 @@ import pandas as pd
 # CONFIGURACIÓN GENERAL
 # ============================================================
 # Carpeta donde están los archivos de entrada.
-CARPETA_DATOS = Path(r"./datos")
+CARPETA_DATOS = Path(r"C:\ruta\a\tu\carpeta\de\datos")
 
 # Carpeta donde se guardarán los resultados.
-CARPETA_SALIDA = Path(r"./salidas_limpias")
+CARPETA_SALIDA = Path(r"C:\ruta\a\tu\carpeta\de\salida")
 
 # Nombre exacto del archivo a procesar dentro de CARPETA_DATOS.
 NOMBRE_ARCHIVO_ENTRADA = "salidas_20260224.csv"

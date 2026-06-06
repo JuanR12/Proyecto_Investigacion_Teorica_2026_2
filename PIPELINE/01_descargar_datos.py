@@ -12,7 +12,8 @@ import requests
 from pathlib import Path
 from urllib.parse import quote
 
-DATA_DIR = Path("datos")
+PROYECTO_RAIZ = Path(__file__).resolve().parent.parent
+DATA_DIR = PROYECTO_RAIZ / "datos"
 DATA_DIR.mkdir(exist_ok=True)
 
 BASE_ENTRADAS = "https://storage.googleapis.com/validaciones_tmsa/ValidacionTroncal"

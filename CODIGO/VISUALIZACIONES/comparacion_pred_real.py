@@ -1,13 +1,18 @@
 import glob
+import sys
+from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 
-PARQUET_DIR = r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\parquet"
-PRED_CSV    = r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\PREDICCIONES\predicciones_2025_prueba.csv"
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from config import RUTA_PARQUET as PARQUET_DIR, RUTA_PREDS, RUTA_FIGURAS
+
+PRED_CSV = RUTA_PREDS / "predicciones_2025_prueba.csv"
 
 real = pd.concat(
     [pd.read_parquet(f).groupby("datetime")["entradas"].sum()
-     for f in sorted(glob.glob(f"{PARQUET_DIR}\\2025-*-entradas.parquet"))],
+     for f in sorted(glob.glob(str(PARQUET_DIR / "2025-*-entradas.parquet")))],
 ).groupby("datetime").sum().reset_index()
 real["datetime"] = pd.to_datetime(real["datetime"])
 
@@ -21,5 +26,6 @@ ax.set_ylabel("Entradas por intervalo de 15 min")
 ax.legend()
 ax.grid(True, alpha=0.25)
 plt.tight_layout()
-plt.savefig("comparativa_2025.png", dpi=150, bbox_inches="tight")
+plt.savefig(RUTA_FIGURAS / "comparativa_2025_entradas.png", dpi=150, bbox_inches="tight")
 plt.show()
+print(f"Figura guardada en {RUTA_FIGURAS / 'comparativa_2025_entradas.png'}")

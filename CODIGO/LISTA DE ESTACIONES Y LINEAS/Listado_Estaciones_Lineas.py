@@ -1,13 +1,22 @@
+import sys
 import pandas as pd
 from pathlib import Path
+
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from config import PROYECTO_RAIZ
 
 # ==========================================
 # CONFIGURACIÓN
 # ==========================================
-archivo_entrada = Path(r"20260401.csv")   # cambia esto si el nombre o ruta es distinto
+# Archivo CSV de datos crudos transaccionales (no está en el repositorio).
+# Cambia la ruta al archivo descargado de Transmilenio.
+archivo_entrada = Path(r"C:\ruta\a\tu\archivo\20260401.csv")
 
-archivo_lineas = Path(r"lista_unica_lineas.csv")
-archivo_estaciones = Path(r"lista_unica_estaciones_parada.csv")
+# Los CSVs de salida van a DOCS para ser consultados por otros scripts.
+DOCS_DIR = PROYECTO_RAIZ / "DOCS" / "INFORMACION_BASES_DE_DATOS"
+archivo_lineas = DOCS_DIR / "lista_unica_lineas.csv"
+archivo_estaciones = DOCS_DIR / "lista_unica_estaciones_parada.csv"
 
 tamano_bloque = 500_000
 

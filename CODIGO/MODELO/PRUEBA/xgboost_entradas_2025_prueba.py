@@ -13,21 +13,26 @@ Cada parquet tiene columnas: linea_id, station_id, datetime, entradas
 """
 
 import glob
+import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from config import RUTA_PARQUET, RUTA_PREDS, RUTA_FIGURAS
+
 # ─────────────────────────────────────────────
 # 1. CARGA Y AGREGACIÓN
 # ─────────────────────────────────────────────
 
-RUTA_DATOS = r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\parquet"
-archivos = sorted(glob.glob(f"{RUTA_DATOS}\\*-entradas.parquet"))
+archivos = sorted(glob.glob(str(RUTA_PARQUET / "*-entradas.parquet")))
 
 if not archivos:
-    raise FileNotFoundError(f"No se encontraron archivos en {RUTA_DATOS}")
+    raise FileNotFoundError(f"No se encontraron archivos en {RUTA_PARQUET}")
 
 print(f"Archivos encontrados: {len(archivos)}")
 
@@ -227,9 +232,7 @@ resultados_2025 = pd.DataFrame({
     "datetime":    futuro,
     "prediccion":  np.array(preds_2025).round().astype(int),
 })
-resultados_2025.to_csv(
-    r"C:\Users\Juanshots\Desktop\PROYECTO_INV_TEO\DATOS LIMPIOS\ENTRADA Y SALIDA MENSUAL\PREDICCIONES\predicciones_2025_prueba.csv", index=False
-)
+resultados_2025.to_csv(RUTA_PREDS / "predicciones_2025_prueba.csv", index=False)
 print("Predicciones 2025 exportadas.")
 
 # ─────────────────────────────────────────────
@@ -290,6 +293,6 @@ ax.set_xlabel("Importancia relativa")
 ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig("prediccion_2025_prueba.png", dpi=150, bbox_inches="tight")
+plt.savefig(RUTA_FIGURAS / "prediccion_2025_prueba.png", dpi=150, bbox_inches="tight")
 plt.show()
-print("Figura guardada en prediccion_2025_prueba.png")
+print(f"Figura guardada en {RUTA_FIGURAS / 'prediccion_2025_prueba.png'}")

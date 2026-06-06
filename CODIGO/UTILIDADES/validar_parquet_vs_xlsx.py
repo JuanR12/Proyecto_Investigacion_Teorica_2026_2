@@ -1,11 +1,14 @@
+import sys
+import random
+import re
+from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import random, re
-from pathlib import Path
 
-DATA_DIR    = Path(r'C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\datos')
-PARQUET_DIR = Path(r'C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet')
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from config import RUTA_DATOS as DATA_DIR, RUTA_PARQUET as PARQUET_DIR, RUTA_FIGURAS
 
 MESES_INV = {
     1:"ENERO",2:"FEBRERO",3:"MARZO",4:"ABRIL",5:"MAYO",6:"JUNIO",
@@ -129,6 +132,6 @@ for ax, pq_data, xl_data, titulo, color in [
     ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig(PARQUET_DIR.parent / f'comparativa_{año}_{mes:02d}.png', dpi=150, bbox_inches='tight')
+plt.savefig(RUTA_FIGURAS / f'comparativa_{año}_{mes:02d}.png', dpi=150, bbox_inches='tight')
 plt.show()
 print("Gráfica guardada.")

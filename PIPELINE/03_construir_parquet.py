@@ -15,8 +15,9 @@ import pandas as pd
 from pathlib import Path
 from datetime import timedelta
 
-DATA_DIR   = Path("datos")
-PARQUET_DIR = Path("outputs/parquet")
+PROYECTO_RAIZ = Path(__file__).resolve().parent.parent
+DATA_DIR    = PROYECTO_RAIZ / "datos"
+PARQUET_DIR = PROYECTO_RAIZ / "outputs" / "parquet"
 PARQUET_DIR.mkdir(parents=True, exist_ok=True)
 
 MESES = {

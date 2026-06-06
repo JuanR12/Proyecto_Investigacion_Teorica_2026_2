@@ -1,8 +1,14 @@
+import sys
 import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-df = pd.read_csv("Servicios.csv")
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from config import PROYECTO_RAIZ, RUTA_FIGURAS
+
+df = pd.read_csv(PROYECTO_RAIZ / "DOCS" / "INFORMACION_BASES_DE_DATOS" / "Servicios.csv")
 col_origen = "orig_ruta"
 col_destino = "dest_ruta"
 df[col_origen] = df[col_origen].str.strip().str.lower()
@@ -47,4 +53,6 @@ nx.draw_networkx_edges(
 
 plt.title("Red de estaciones - TransMilenio")
 plt.axis("off")
+plt.savefig(RUTA_FIGURAS / "red_rutas_transmilenio.png", dpi=150, bbox_inches="tight")
 plt.show()
+print(f"Figura guardada en {RUTA_FIGURAS / 'red_rutas_transmilenio.png'}")

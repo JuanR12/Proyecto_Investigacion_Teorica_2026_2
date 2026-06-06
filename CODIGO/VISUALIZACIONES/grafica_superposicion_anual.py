@@ -1,10 +1,13 @@
+import sys
+from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
-from pathlib import Path
 
-PARQUET_DIR = Path(r'C:\Users\gordi\Desktop\Transmilenio\Proyecto_Investigacion_Teorica_2026_2\outputs\parquet')
+# Importar rutas desde config.py (raíz del proyecto). Ver config.py para personalizar.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from config import RUTA_PARQUET as PARQUET_DIR, RUTA_FIGURAS
 
 AÑOS = [2019, 2022, 2023, 2024, 2025]
 
@@ -61,6 +64,6 @@ axes[-1].xaxis.set_major_locator(mdates.MonthLocator())
 axes[-1].set_xlabel('Día del año', fontsize=11)
 
 plt.tight_layout()
-plt.savefig(PARQUET_DIR.parent / 'entradas_salidas_subplots.png', dpi=150, bbox_inches='tight')
+plt.savefig(RUTA_FIGURAS / 'superposicion_anual.png', dpi=150, bbox_inches='tight')
 plt.show()
-print("Guardada: entradas_salidas_subplots.png")
+print(f"Guardada: {RUTA_FIGURAS / 'superposicion_anual.png'}")

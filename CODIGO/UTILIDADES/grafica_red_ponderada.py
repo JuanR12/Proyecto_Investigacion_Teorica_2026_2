@@ -1,7 +1,20 @@
+import sys
+import pandas as pd
+from pathlib import Path
+
+# Este script pondera el grafo G construido en grafica_red_rutas.py.
+# Al importar ese módulo, el grafo se construye automáticamente.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from grafica_red_rutas import G
+
+# ============================================================
+# CONFIGURACIÓN — ajusta antes de ejecutar
+# ============================================================
+# Archivo CSV de salidas transaccionales (datos crudos, no está en el repo).
+archivo_salidas = Path(r"C:\ruta\a\tu\archivo\salidas.csv")
 
 hora_objetivo = "08:15"
 
-archivo_salidas = Path(r"20260412-2.csv")   
 # ==========================================
 # DETECTAR CODIFICACIÓN
 # ==========================================
