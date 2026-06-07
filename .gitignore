@@ -12,8 +12,7 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 
-# Datos procesados pesados (reproducibles con el pipeline)
-outputs/parquet/
+# Predicciones generadas (CSVs de salida de los modelos)
 outputs/predicciones/
 
 # Datos crudos descargados por el pipeline
