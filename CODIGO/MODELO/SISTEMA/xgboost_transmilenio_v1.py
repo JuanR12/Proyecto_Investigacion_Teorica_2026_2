@@ -238,7 +238,7 @@ print("Predicciones exportadas en predicciones_2025.csv")
 # 8. VISUALIZACIONES
 # ─────────────────────────────────────────────
 
-fig, axes = plt.subplots(3, 1, figsize=(24, 14))
+fig, axes = plt.subplots(2, 1, figsize=(24, 14))
 fig.suptitle("XGBoost TransMilenio: Entradas sistema agregado", fontsize=14)
 
 # -- Panel 1: test completo 2025
@@ -287,12 +287,12 @@ ax.grid(True, alpha=0.3)
 # Si una feature esperada aparece con importancia casi cero, puede estar mal
 # construida o ser redundante con otra.
 
-ax = axes[2]
-importancias = pd.Series(model.feature_importances_, index=FEATURES).sort_values()
-importancias.plot(kind="barh", ax=ax, color="steelblue")
-ax.set_title("Importancia de features (XGBoost)")
-ax.set_xlabel("Importancia relativa")
-ax.grid(True, alpha=0.3)
+#ax = axes[2]
+#importancias = pd.Series(model.feature_importances_, index=FEATURES).sort_values()
+#importancias.plot(kind="barh", ax=ax, color="steelblue")
+#ax.set_title("Importancia de features (XGBoost)")
+#ax.set_xlabel("Importancia relativa")
+#ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.savefig(RUTA_FIGURAS / "resultados_xgboost_entradas.png", dpi=150, bbox_inches="tight")

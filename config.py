@@ -26,6 +26,9 @@ RUTA_DATOS    = PROYECTO_RAIZ / "datos"                     # xlsx crudos descar
 RUTA_PARQUET  = PROYECTO_RAIZ / "outputs" / "parquet"       # archivos parquet procesados
 RUTA_PREDS    = PROYECTO_RAIZ / "outputs" / "predicciones"  # CSVs de predicciones
 RUTA_FIGURAS  = PROYECTO_RAIZ / "outputs" / "FIGURAS"       # imágenes generadas
+RUTA_PREDS_2025_01  = PROYECTO_RAIZ / "outputs" / "predicciones" / "2025-01-01_a_2025-03-01"
+RUTA_PREDS_2026    = PROYECTO_RAIZ / "outputs" / "predicciones" / "2026-01-01_a_2026-05-01_ventana_movil"
+
 
 # ─────────────────────────────────────────────────────────────────────
 # RUTAS PERSONALIZADAS — descomenta y ajusta si necesitas cambiar alguna
@@ -45,3 +48,4 @@ RUTA_FIGURAS  = PROYECTO_RAIZ / "outputs" / "FIGURAS"       # imágenes generada
 # ─────────────────────────────────────────────────────────────────────
 RUTA_PREDS.mkdir(parents=True, exist_ok=True)
 RUTA_FIGURAS.mkdir(parents=True, exist_ok=True)
+RUTA_PREDS_2026.mkdir(parents=True, exist_ok=True)
